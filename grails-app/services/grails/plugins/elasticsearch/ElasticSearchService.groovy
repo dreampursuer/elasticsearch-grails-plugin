@@ -20,23 +20,22 @@ import grails.core.support.GrailsApplicationAware
 import grails.plugins.elasticsearch.index.IndexRequestQueue
 import grails.plugins.elasticsearch.mapping.SearchableClassMapping
 import grails.plugins.elasticsearch.util.GXContentBuilder
-import org.elasticsearch.action.count.CountRequest
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchType
-import org.elasticsearch.action.support.QuerySourceBuilder
 import org.elasticsearch.client.Client
+import org.elasticsearch.index.query.Operator
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryStringQueryBuilder
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.builder.SearchSourceBuilder
-import org.elasticsearch.search.highlight.HighlightBuilder
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder
 import org.elasticsearch.search.sort.SortBuilder
 import org.elasticsearch.search.sort.SortOrder
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import static org.elasticsearch.index.query.QueryBuilders.queryStringQuery
-import static org.elasticsearch.index.query.QueryStringQueryBuilder.Operator
+
 
 class ElasticSearchService implements GrailsApplicationAware {
     static final Logger LOG = LoggerFactory.getLogger(this)
@@ -119,7 +118,7 @@ class ElasticSearchService implements GrailsApplicationAware {
      * @return An Integer representing the number of hits for the query
      */
     Integer countHits(String query, Map params = [:]) {
-        CountRequest request = buildCountRequest(query, params)
+        SearchRequest request = buildCountRequest(query, params)
         count(request, params)
     }
 
@@ -131,7 +130,7 @@ class ElasticSearchService implements GrailsApplicationAware {
      * @return An Integer representing the number of hits for the query
      */
     Integer countHits(Map params, Closure query) {
-        CountRequest request = buildCountRequest(query, params)
+        SearchRequest request = buildCountRequest(query, params)
         count(request, params)
     }
 
@@ -328,8 +327,8 @@ class ElasticSearchService implements GrailsApplicationAware {
      * @param params
      * @return
      */
-    private CountRequest buildCountRequest(query, Map params) {
-        CountRequest request = new CountRequest()
+    private SearchRequest buildCountRequest(query, Map params) {
+        SearchRequest request = new SearchRequest()
 
         // Handle the query, can either be a closure or a string
         if (query instanceof Closure) {
@@ -340,7 +339,8 @@ class ElasticSearchService implements GrailsApplicationAware {
             if (params.analyzer) {
                 builder.analyzer(params.analyzer)
             }
-            request.source(new QuerySourceBuilder().setQuery(builder))
+
+            request.source(new SearchSourceBuilder().query(builder))
         }
 
         request
@@ -498,13 +498,13 @@ class ElasticSearchService implements GrailsApplicationAware {
      * @param params
      * @return Integer The number of hits for the query
      */
-    Integer count(CountRequest request, Map params) {
+    Integer count(SearchRequest request, Map params) {
         resolveIndicesAndTypes(request, params)
         elasticSearchHelper.withElasticSearch { Client client ->
             LOG.debug 'Executing count request.'
-            def response = client.count(request).actionGet()
+            def response = client.search(request).get()
             LOG.debug 'Completed count request.'
-            def result = response.count ?: 0
+            def result = response.getHits().getTotalHits()
 
             LOG.debug "${result} hit(s) matched the specified query."
 
@@ -519,7 +519,7 @@ class ElasticSearchService implements GrailsApplicationAware {
      * @return
      */
     private resolveIndicesAndTypes(request, Map params) {
-        assert request instanceof SearchRequest || request instanceof CountRequest
+        assert request instanceof SearchRequest
 
         // Handle the indices.
         if (params.indices) {

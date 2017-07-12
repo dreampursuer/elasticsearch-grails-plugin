@@ -16,6 +16,7 @@
 
 package grails.plugins.elasticsearch.mapping
 
+import grails.plugins.elasticsearch.exception.MappingException
 import grails.plugins.elasticsearch.util.ElasticSearchConfigAware
 import groovy.transform.CompileStatic
 import org.elasticsearch.cluster.health.ClusterHealthStatus
@@ -23,7 +24,6 @@ import org.grails.core.artefact.DomainClassArtefactHandler
 import grails.core.GrailsApplication
 import grails.core.GrailsClass
 import grails.core.GrailsDomainClass
-import org.elasticsearch.index.mapper.MergeMappingException
 import org.elasticsearch.transport.RemoteTransportException
 import grails.plugins.elasticsearch.ElasticSearchAdminService
 import grails.plugins.elasticsearch.ElasticSearchContextHolder
@@ -143,7 +143,7 @@ class SearchableClassMappingConfigurator implements ElasticSearchConfigAware {
                     } catch (IllegalArgumentException e) {
                         LOG.warn("Could not install mapping ${scm.indexName}/${scm.elasticTypeName} due to ${e.message}, migrations needed")
                         mappingConflicts << new MappingConflict(scm: scm, exception: e)
-                    } catch (MergeMappingException e) {
+                    } catch (MappingException e) {
                         LOG.warn("Could not install mapping ${scm.indexName}/${scm.elasticTypeName} due to ${e.message}, migrations needed")
                         mappingConflicts << new MappingConflict(scm: scm, exception: e)
                     }

@@ -20,10 +20,11 @@ import org.elasticsearch.Version
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
-import org.elasticsearch.mapper.attachments.MapperAttachmentsPlugin
+import org.elasticsearch.node.InternalSettingsPreparer
 import org.elasticsearch.node.Node
-import org.elasticsearch.node.internal.InternalSettingsPreparer
 import org.elasticsearch.plugins.Plugin
+import org.elasticsearch.transport.client.PreBuiltTransportClient
+import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.FactoryBean
@@ -50,7 +51,7 @@ class ClientNodeFactoryBean implements FactoryBean {
             throw new IllegalArgumentException("Invalid client mode, expected values were ${SUPPORTED_MODES}.")
         }
 
-        Settings.Builder settings = Settings.settingsBuilder()
+        Settings.Builder settings = Settings.builder()
         def configFile = elasticSearchContextHolder.config.bootstrap.config.file
         if (configFile) {
             LOG.info "Looking for bootstrap configuration file at: $configFile"
@@ -74,7 +75,7 @@ class ClientNodeFactoryBean implements FactoryBean {
         // Configure the client based on the client mode
         switch (clientMode) {
             case 'transport':
-                def transportSettings = Settings.settingsBuilder()
+                def transportSettings = Settings.builder()
 
                 def transportSettingsFile = elasticSearchContextHolder.config.bootstrap.transportSettings.file
                 if (transportSettingsFile) {
@@ -88,18 +89,16 @@ class ClientNodeFactoryBean implements FactoryBean {
                 if (elasticSearchContextHolder.config.cluster.name) {
                     transportSettings.put('cluster.name', elasticSearchContextHolder.config.cluster.name.toString())
                 }
-                transportClient = TransportClient.builder().settings(transportSettings).build()
+                transportClient = new PreBuiltTransportClient(transportSettings.build())
 
                 boolean ip4Enabled = elasticSearchContextHolder.config.shield.ip4Enabled ?: true
                 boolean ip6Enabled = elasticSearchContextHolder.config.shield.ip6Enabled ?: false
 
-                try {
-                    def shield = Class.forName("org.elasticsearch.shield.ShieldPlugin")
-                    transportClient = TransportClient.builder().addPlugin(shield).settings(transportSettings).build();
-                    LOG.info("Shield Enabled")
-                } catch (ClassNotFoundException e) {
-                    transportClient = TransportClient.builder().settings(transportSettings).build()
+                if (transportSettings.get("xpack.security.user")){
+                    //如果设置了elasticSearch.bootstrap.transportSettings.file，并且其中应该设置上了xpack.security.user，则使用PreBuiltXPackTransportClient方式进行连接
+                    transportClient = new PreBuiltXPackTransportClient(transportSettings.build())
                 }
+                LOG.info("XPack Enabled")
 
                 // Configure transport addresses
                 if (!elasticSearchContextHolder.config.client.hosts) {

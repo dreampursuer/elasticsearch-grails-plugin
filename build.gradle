@@ -4,7 +4,9 @@ buildscript {
     }
     repositories {
         mavenLocal()
+		maven { url "http://maven.aliyun.com/nexus/content/groups/public/" }
         maven { url "https://repo.grails.org/grails/core" }
+		maven { url "https://artifacts.elastic.co/maven" }
     }
     dependencies {
         classpath "org.grails:grails-gradle-plugin:$grailsVersion"
@@ -19,7 +21,7 @@ plugins {
     id 'com.jfrog.artifactory' version '4.0.0'
 }
 
-version "1.2.1"
+version "1.2.4"
 group "org.grails.plugins"
 
 apply plugin: 'maven-publish'
@@ -32,7 +34,7 @@ apply plugin: "org.grails.grails-gsp"
 ext {
     grailsVersion = project.grailsVersion
     gradleWrapperVersion = project.gradleWrapperVersion
-    elasticsearchVersion = "2.3.3"
+    elasticsearchVersion = "5.5.0"
 }
 
 sourceCompatibility = 1.7
@@ -40,8 +42,10 @@ targetCompatibility = 1.7
 
 repositories {
     mavenLocal()
+	maven { url "http://maven.aliyun.com/nexus/content/groups/public/" }
     mavenCentral()
     maven { url "https://repo.grails.org/grails/core" }
+	maven { url "https://artifacts.elastic.co/maven" }
 }
 
 dependencyManagement {
@@ -66,7 +70,7 @@ sourcesJar {
     exclude "test/**/**"
 }
 
-def elasticsearchVersion = '2.3.3'
+def elasticsearchVersion = '5.5.0'
 
 dependencies {
     provided 'org.springframework.boot:spring-boot-starter-logging'
@@ -93,7 +97,9 @@ dependencies {
     provided "org.grails:grails-plugin-services"
     provided "org.grails:grails-plugin-domain-class"
 
-    compile "org.elasticsearch.plugin:mapper-attachments:${elasticsearchVersion}"
+//    compile "org.elasticsearch.plugin:mapper-attachments:${elasticsearchVersion}"
+    compile "org.elasticsearch.client:transport:${elasticsearchVersion}"
+    compile "org.elasticsearch.client:x-pack-transport:${elasticsearchVersion}"
 }
 
 task wrapper(type: Wrapper) {
@@ -117,5 +123,18 @@ apply from: "gradle/documentation.gradle"
 apply from: "gradle/publish.gradle"
 
 
-
+grailsPublish {
+    // TODO: Provide values here
+    user = 'user'
+    key = 'key'
+    githubSlug = 'dreampursuer/exsoft'
+    license {
+        name = 'Apache-2.0'
+    }
+    title = "elasticsearch Plugin"
+    desc = "exsoft rapid development framework"
+    developers = [jien:"Jien yu"]
+    portalUser = ""
+    portalPassword = ""
+}
 
